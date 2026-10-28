@@ -1,3 +1,20 @@
+## v1.8.1
+
+一笔社区改动：DSH 文件引用段（`@deepseek-ai/dsh-file-reference` 注入的 `FILE_REFERENCE_PROMPT`）的 11-128 渠道指纹。套件 226 个（167 Python + 59 JS），数量不变。
+
+- **DSH 文件引用段补一个词，消掉 11-128 渠道校验**（[PR #684](https://github.com/ardeyouxipianyi/workbuddy2api-hub/pull/684)，感谢 [@yrx2324](https://github.com/yrx2324)）：DSH 的官方插件 `@deepseek-ai/dsh-file-reference`（`packages/context/file-reference`）会往系统提示里注入一段以 `Tokens prefixed with @ are paths the user explicitly referenced.` 开头的引用说明，整段命中上游「非官方客户端」判据，回 `400 / code 11-128`（`displayTips`：这次调用没通过渠道校验）。v1.8.0 的清洗规则已覆盖自我介绍句（#540）、GUI 描述段（#579）与品牌词（#570 / #574），这一段一直没覆盖，于是同一客户端只有**部分请求** 400，用户侧表现为「有时能用、有时报渠道校验」。
+  二分实测（2026-10-28，国内号池真实回放）：整段五句连排稳定 400；只发前两句 200；整段里 A 句补一个 `that` 后 200；改 B 句措辞 / 中间插句 / 换序仍 200。**匹配单位是整段连续文本**，不是某两句也不是单词 —— 「只截前两句自测」会把未修复误判成已修复，线上照旧 400。
+  修法只动 A 句一个虚词：`paths the user` → `paths that the user`，语义不变；B 句及其后所有句子逐字保留，改动面最小，也不依赖后半段措辞（DSH 以后换掉结尾写法不会让规则失效）。新增 `SANITIZE_DSH_FILEREF_RE` / `_REPLACEMENT` / `_LOWER`，负向前瞻 `(?!that )` 保证幂等；`has_fingerprint` 用 A 句做廉价前置探测、再由正则确认，避免把只是提到 @ 路径的普通文本拖进清洗主路径；作用域与 GUI 段一致（`system` / `developer` / `assistant`），`user` / `tool` 里的同句是用户数据、不改写（#537）。新增 `tests/_test_sanitize_fingerprint.py::DshFileReferenceParagraphTests`（8 项）。
+
+验证：
+
+- 本地完整矩阵：`226 passed, 0 failed, 0 skipped`。
+- 回滚对照：把 `wb_proxy.py` 退回补丁前（`4f7ae6f`）再跑新增用例，8 项中 6 项失败；空过的两项是幂等用例与「无关 @ 文本」负向用例，符合预期（前者在无补丁时因 `sanitize_text` 为恒等而空过，单独不具鉴别力）。
+- 出站请求体实测：`build_upstream_body` 产出的 `system` / `assistant` 段已改写、`user` 段逐字未动，改写后 `has_fingerprint` 为 False。
+- 隔离端口（8799）冒烟：启动日志无报错，`/` 与 `/panel/status` 200，`/panel/login` 与带 `X-Panel-Token` 的 `/accounts` 均 200。
+- 本机没有真实账号池，**未执行网关到 WorkBuddy 上游的真实模型冒烟**；无账号时 `/v1/chat/completions` 正确返回 503，进程存活。
+- GitHub CI：以 tag `v1.8.1` 触发的 `tests` / `release` 运行记录为准（Ubuntu 3.9、Ubuntu 3.12、Windows 3.12）。
+
 ## v1.8.0
 
 本版汇总 `v1.7.33` 之后的四个修复，并补记此前已进入发布页、但未写入仓库 CHANGELOG 的三项改动。套件 226 个（167 Python + 59 JS）。
