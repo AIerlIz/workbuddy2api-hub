@@ -342,8 +342,13 @@ try:
             check("a peer that %s fails the read" % stall, raised)
             # Loose on purpose: the ceiling only has to separate "gave up" from
             # "hung", and a loaded runner may be slow to schedule the wakeup.
+            # The floor only has to catch a read that never waited at all, so it
+            # sits below the 0.5s deadline: `time.monotonic()` around a select
+            # that wakes on its own deadline lands a hair under it (0.499x is
+            # routine), and pinning the floor at exactly 0.5 made this fail in
+            # about one run in six, on runs where nothing was wrong.
             check("and gives up on its deadline, not eventually",
-                  0.5 <= waited < 8.0, "%.2fs" % waited)
+                  0.45 <= waited < 8.0, "%.2fs" % waited)
     finally:
         quiet.close()
         silent.close()
