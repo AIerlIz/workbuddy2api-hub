@@ -176,7 +176,7 @@ python tests/run_all.py            # 全部套件
 python tests/run_all.py realm      # 只跑名字里含 realm 的
 ```
 
-- 231 个套件：172 个 Python + 59 个 JS；JS 需要 PATH 上有 `node`，缺失时会跳过并提示。
+- 232 个套件：173 个 Python + 59 个 JS；JS 需要 PATH 上有 `node`，缺失时会跳过并提示。
 - `tests/_mobile_check.py` 是独立的 Playwright 手机/桌面布局检查器（需自行安装 Playwright），按需手动运行，不在上面的套件集里。
 - CI（`.github/workflows/tests.yml`）跑同一条命令：Ubuntu 上 python 3.9 与 3.12（3.9 是本项目声称的最低版本），Windows 上 python 3.12；推送 `v*` tag 时额外断言 **tag == 源码版本**（`-ci` 演练 tag 豁免）。
 
@@ -482,6 +482,8 @@ export ANTHROPIC_API_KEY="你在看板设置中添加并绑定的API_Key"
 ## 六、版本更新记录 (Changelog)
 
 <!-- 发版时：把下面的 Unreleased 段落整理成新版本号（## vX.Y.Z），整体移入 docs/CHANGELOG.md 顶部 -->
+
+- **流式终止**：设置 `WB_STOP_AT_SSE_DONE=1` 后，收到上游 SSE `[DONE]` 立即结束读取；默认关闭，保持原有行为。 / **Stream termination**: set `WB_STOP_AT_SSE_DONE=1` to stop reading at the upstream SSE `[DONE]` marker; disabled by default to retain existing behavior.
 
 - **v1.9.0 发布**：汇总 v1.8.0 之后的 10 个社区 PR（#649、#650、#652、#653、#669、#670、#671、#672、#684、#686）。完整变更、验证范围与已知限制见 **[docs/CHANGELOG.md](docs/CHANGELOG.md#v190)**；下一版的改动继续写在本段。
 - **v1.8.0 发布**：汇总 v1.7.33 之后的 #640、#642、#643、#645/#647，并补齐 #578、#618、#625 的发布记录。完整变更、验证范围与已知限制见 **[docs/CHANGELOG.md](docs/CHANGELOG.md#v180)**；下一版的改动继续写在本段。
