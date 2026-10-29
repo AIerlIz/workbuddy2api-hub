@@ -14072,7 +14072,10 @@ def read_http_error(exc, limit=600):
     if raw is not None:
         return raw[:limit]
     try:
-        return exc.read(limit)
+        raw = exc.read(limit)
+        if os.environ.get("WB_CACHE_HTTP_ERROR_BODY", "").strip().lower() in ("1", "true", "yes", "on"):
+            exc.wb_body = raw
+        return raw
     except Exception:
         return b""
 
