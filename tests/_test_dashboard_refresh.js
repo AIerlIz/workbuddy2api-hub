@@ -14,6 +14,32 @@ const path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'dashboard.html'), 'utf8');
 
+// Exercise the current analytics page while its first request is still pending.
+async function testAnalyticsPolling() {
+  const start = html.indexOf('let WBA_GEN = 0;');
+  const end = html.indexOf('async function loadStatic()', start);
+  assert.ok(start > 0 && end > start);
+  const calls = [];
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  const state = {range: 'month'};
+  const api = url => { calls.push(url); return pending; };
+  const noop = () => {};
+  const factory = new Function('state', 'api', '$', 'rangeParams', 'pollUntil',
+    'loadPrevSummary', 'renderKpis', 'renderSeriesMeta', 'drawSeries', 'drawSparks',
+    'renderDim', 'loadRecent', html.slice(start, end) + '\nreturn loadRange;');
+  const load = factory(state, api, () => ({style: {}}), r => 'range=' + r,
+    () => 1, () => pending, noop, noop, noop, noop, noop, noop);
+  const first = load(true);
+  await load(true);
+  assert.strictEqual(calls.length, 2, 'polling must not start a duplicate request');
+  release({});
+  await first;
+  await load(true);
+  assert.strictEqual(calls.length, 4, 'polling must resume after completion');
+}
+testAnalyticsPolling().catch(err => { console.error(err); process.exitCode = 1; });
+
 const start = html.indexOf('let REFRESH_RUNNING');
 const end = html.indexOf('async function refreshInner');
 assert.ok(start > 0 && end > start, 'dashboard.html 里找不到刷新逻辑，测试需要更新');

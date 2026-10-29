@@ -5640,6 +5640,7 @@ button.page-nav-top:hover{background:var(--panel2);border-color:var(--accent);co
           </tbody>
         </table>
         <div id="setUpdateError" style="font-size:12px;color:var(--warn);margin-top:8px"></div>
+        <div id="setUpdateInstallHint" style="font-size:12px;color:var(--dim);margin-top:8px" aria-live="polite"></div>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:14px">
           <input id="setUpdateCheckEnabled" type="checkbox" style="width:16px;height:16px">
           每天自动检查更新
@@ -13258,8 +13259,11 @@ function applyUpdateStatus(data){
     install.disabled = !canInstall;
     install.title = !data.install_enabled ? '更新服务未安装'
       : busy ? '已有更新任务正在运行'
+      : data.checking ? '正在检查更新，请稍候'
       : !data.update_available ? '当前没有可安装的新版本'
       : (!data.latest_tag || !data.release_url) ? '请先点击立即检查更新' : '';
+    const hint = document.getElementById('setUpdateInstallHint');
+    if(hint) hint.textContent = canInstall ? '发现新版本，点击“安装更新”开始安装。' : install.title;
   }
 }
 
@@ -16622,7 +16626,11 @@ if(typeof MutationObserver !== 'undefined'){
  * 的一轮（刚切了区间、或轮询撞上点击），这批结果已经过期，直接丢掉——否则慢的那一轮
  * 晚到，会把上一个区间的数字画到新区间的标题下面（实测有 1.2~1.8 秒的错位窗口）。 */
 let WBA_GEN = 0;
+const WBA_PENDING = new Map();
 async function loadRange(polled){
+  const range = state.range;
+  if(polled && WBA_PENDING.has(range)) return;
+  WBA_PENDING.set(range, (WBA_PENDING.get(range) || 0) + 1);
   const gen = ++WBA_GEN;
   const untilAt = polled ? pollUntil() : null;
   $('kpis').style.opacity = .55;
@@ -16640,6 +16648,10 @@ async function loadRange(polled){
   } catch(e){
     if (gen !== WBA_GEN) return;
     console.error('load range failed', e);
+  } finally {
+    const remaining = WBA_PENDING.get(range) - 1;
+    if(remaining) WBA_PENDING.set(range, remaining);
+    else WBA_PENDING.delete(range);
   }
   $('kpis').style.opacity = 1;
   renderKpis();
